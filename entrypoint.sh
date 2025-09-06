@@ -6,14 +6,19 @@ CERT_PATH="/snikket/letsencrypt/live/$SNIKKET_DOMAIN_ASCII/fullchain.pem"
 
 PROTOS="${SNIKKET_TWEAK_WEB_PROXY_PROTOS:-http https}"
 
-if test -f "$CERT_PATH"; then
-	## Certs already exist - render and deploy configs
-	/usr/local/bin/render-template.sh "/etc/nginx/templates/snikket-common" "/etc/nginx/snippets/snikket-common.conf"
-	for proto in $PROTOS; do
-		/usr/local/bin/render-template.sh "/etc/nginx/templates/$proto" "/etc/nginx/sites-enabled/$proto";
-	done
+/usr/local/bin/render-template.sh "/etc/nginx/templates/snikket-common" "/etc/nginx/snippets/snikket-common.conf"
+
+if [ "$(printf '%s' "$PROTOS" | wc -w)" -eq 1 ] && [ "$PROTOS" = "http" ]; then
+    /usr/local/bin/render-template.sh "/etc/nginx/templates/http_only" "/etc/nginx/sites-enabled/http_only"
 else
-	/usr/local/bin/render-template.sh "/etc/nginx/templates/startup" "/etc/nginx/sites-enabled/startup";
+    if test -f "$CERT_PATH"; then
+		## Certs already exist - render and deploy configs
+		for proto in $PROTOS; do
+			/usr/local/bin/render-template.sh "/etc/nginx/templates/$proto" "/etc/nginx/sites-enabled/$proto";
+		done
+	else
+		/usr/local/bin/render-template.sh "/etc/nginx/templates/startup" "/etc/nginx/sites-enabled/startup";
+	fi
 fi
 
 if [ "${#SNIKKET_DOMAIN_ASCII}" -gt 35 ]; then
